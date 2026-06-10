@@ -11,6 +11,7 @@ import math
 import random
 from functools import lru_cache
 
+import httpx
 import networkx as nx
 
 from backend.models.schemas import Order
@@ -86,12 +87,13 @@ def _traffic_multiplier(lat1: float, lng1: float, lat2: float, lng2: float) -> f
 # Graph construction
 # ---------------------------------------------------------------------------
 
-def build_graph(orders: list[Order]) -> nx.Graph:
+def build_graph(orders: list[Order], use_osrm: bool = False) -> nx.Graph:
     """
     Build a fully-connected weighted graph from a list of orders.
 
     Edge weights are Haversine distances in km, multiplied by a
-    realistic road-distance factor.
+    realistic road-distance factor. If use_osrm is True, attempts to
+    use OSRM public API for real road distances (falling back to Haversine on error).
     """
     if not orders:
         return nx.Graph()
@@ -101,6 +103,28 @@ def build_graph(orders: list[Order]) -> nx.Graph:
     G = nx.Graph()
     for order in orders:
         G.add_node(order.id, lat=order.lat, lng=order.lng)
+
+    # If OSRM is requested, we can use the distance matrix API
+    if use_osrm and len(orders) <= 100:
+        coords = ";".join([f"{o.lng},{o.lat}" for o in orders])
+        osrm_url = f"http://router.project-osrm.org/table/v1/driving/{coords}?annotations=distance"
+        try:
+            # We use a short timeout as public OSRM can be flaky
+            with httpx.Client(timeout=3.0) as client:
+                resp = client.get(osrm_url)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    distances = data.get("distances", [])
+                    for i, o1 in enumerate(orders):
+                        for j, o2 in enumerate(orders):
+                            if i < j:
+                                # OSRM returns meters, we convert to km
+                                dist_km = distances[i][j] / 1000.0
+                                G.add_edge(o1.id, o2.id, weight=round(dist_km, 4))
+                    return G
+        except Exception as e:
+            # Fallback to Haversine
+            pass
 
     for i, o1 in enumerate(orders):
         for o2 in orders[i + 1:]:
@@ -205,7 +229,7 @@ def _tsp_branch_and_bound(dm: _DistanceMatrix, nodes: list[str]) -> list[str]:
     if n <= 8:
         return _exact_bb(dm, nodes)
 
-    # Greedy nearest-neighbour + 2-opt + Or-opt for 9–15 nodes
+    # Greedy nearest-neighbour + 2-opt + Or-opt for >8 nodes
     route = _greedy_nearest_neighbour(dm, nodes)
     route = _two_opt_improve(dm, route)
     route = _or_opt_improve(dm, route)
@@ -363,13 +387,7 @@ def compute_van_route(orders: list[Order]) -> tuple[list[str], float]:
     if len(orders) == 1:
         return [orders[0].id], 0.0
 
-    if len(orders) > 15:
-        raise ValueError(
-            f"TSP solver supports at most 15 nodes, got {len(orders)}. "
-            "Split orders into smaller groups first."
-        )
-
-    G = build_graph(orders)
+    G = build_graph(orders, use_osrm=True)
     dm = _DistanceMatrix(G)
     node_ids = [o.id for o in orders]
     optimal_route = _tsp_branch_and_bound(dm, node_ids)

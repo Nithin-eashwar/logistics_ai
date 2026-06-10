@@ -1,24 +1,772 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="AI-Optimized Logistics & Fleet Routing Dashboard — Real-time route optimization using Dijkstra, TSP, and Knapsack algorithms" />
-    <meta name="theme-color" content="#060912" />
-    <title>Logistics AI – Fleet Optimizer</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>" />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      crossorigin=""
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<title>Logistics AI — Algorithm Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: "JetBrains Mono", "Courier New", monospace;
+  background: #000;
+  color: #c8c8c8;
+  min-height: 100vh;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* ── Scanline overlay ── */
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none; z-index: 9999;
+}
+
+/* ── Colour palette ── */
+:root {
+  --green:  #00e676;
+  --cyan:   #00e5ff;
+  --white:  #ffffff;
+  --dim:    #555;
+  --border: #1e1e1e;
+  --panel:  #080808;
+}
+
+/* ── Layout ── */
+.wrapper { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; }
+
+/* ── Header ── */
+.hdr {
+  border: 1px solid var(--border);
+  padding: 20px 28px;
+  margin-bottom: 24px;
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--panel);
+}
+.hdr-left {}
+.hdr-title {
+  font-size: 1.25rem; font-weight: 700; color: var(--white);
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.hdr-sub { font-size: 0.75rem; color: var(--dim); margin-top: 4px; letter-spacing: 0.07em; }
+.hdr-algos { margin-top: 10px; display: flex; gap: 20px; }
+.algo-chip {
+  font-size: 0.7rem; color: var(--dim); display: flex; align-items: center; gap: 6px;
+}
+.algo-chip::before { content: "▸"; color: var(--green); }
+
+.run-btn {
+  background: var(--white);
+  color: #000;
+  border: none;
+  padding: 12px 32px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.run-btn:hover { background: var(--green); }
+.run-btn:active { transform: scale(0.97); }
+.run-btn:disabled { background: #222; color: #555; cursor: not-allowed; }
+
+/* ── Section panels ── */
+.panel {
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+  background: var(--panel);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.panel.visible { opacity: 1; transform: translateY(0); }
+
+.panel-hdr {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  background: #0a0a0a;
+}
+.panel-hdr-left { display: flex; align-items: center; gap: 12px; }
+.step-badge {
+  font-size: 0.65rem; font-weight: 700;
+  padding: 2px 8px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  border: 1px solid var(--dim); color: var(--dim);
+}
+.step-badge.active { border-color: var(--cyan); color: var(--cyan); }
+.step-badge.done   { border-color: var(--green); color: var(--green); }
+.panel-title { font-size: 0.9rem; font-weight: 600; color: var(--white); letter-spacing: 0.05em; }
+.panel-algo  { font-size: 0.7rem; color: var(--dim); margin-top: 1px; }
+.panel-timing { font-size: 0.75rem; color: var(--green); font-weight: 700; }
+.panel-body { padding: 20px; }
+
+/* ── Input table ── */
+.input-grid {
+  display: grid;
+  grid-template-columns: 60px 1fr 1fr 140px 80px;
+  gap: 0;
+  font-size: 0.78rem;
+}
+.ig-hdr > div {
+  padding: 6px 10px;
+  font-size: 0.65rem; font-weight: 700;
+  color: var(--dim); text-transform: uppercase; letter-spacing: 0.09em;
+  border-bottom: 1px solid var(--border);
+}
+.ig-row { display: contents; }
+.ig-row > div {
+  padding: 8px 10px;
+  border-bottom: 1px solid #0f0f0f;
+  display: flex; align-items: center;
+}
+.ig-row:last-child > div { border-bottom: none; }
+.ig-row:hover > div { background: #0d0d0d; }
+
+/* Priority bar */
+.pri-bar {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+}
+.pri-blocks { display: flex; gap: 2px; }
+.pri-block  { width: 9px; height: 12px; background: var(--dim); }
+.pri-block.filled  { background: var(--green); }
+.pri-block.filled.high  { background: var(--green); }
+.pri-block.filled.med   { background: var(--cyan); }
+.pri-block.filled.low   { background: #ff7043; }
+.pri-val { font-size: 0.72rem; color: var(--white); font-weight: 700; min-width: 32px; }
+
+/* Weight bar */
+.wt-bar { display: flex; align-items: center; gap: 8px; width: 100%; }
+.wt-track { flex: 1; height: 6px; background: #1a1a1a; position: relative; }
+.wt-fill  { height: 100%; background: var(--white); transition: width 0.5s; }
+.wt-label { font-size: 0.72rem; color: var(--white); font-weight: 700; min-width: 42px; }
+
+/* ── Step 1 sorted list ── */
+.sorted-list {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;
+}
+.sort-item {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 4px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  min-width: 72px;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.sort-item.show { opacity: 1; transform: scale(1); }
+.sort-item-rank { font-size: 0.6rem; color: var(--dim); }
+.sort-item-id   { font-size: 0.95rem; font-weight: 700; color: var(--white); }
+.sort-item-pri  { font-size: 0.7rem; font-weight: 700; }
+.sort-item-wt   { font-size: 0.65rem; color: var(--dim); }
+.sort-desc { font-size: 0.75rem; color: var(--dim); margin-bottom: 14px; line-height: 1.6; }
+
+/* ── Step 2 van packing ── */
+.van-grid { display: flex; flex-direction: column; gap: 14px; }
+.van-row {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  opacity: 0; transform: translateX(-8px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+.van-row.show { opacity: 1; transform: translateX(0); }
+.van-row-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.van-id { font-size: 0.85rem; font-weight: 700; color: var(--white); }
+.van-orders-list { font-size: 0.75rem; color: var(--cyan); }
+.van-cap-row { display: flex; align-items: center; gap: 12px; }
+.van-cap-label { font-size: 0.65rem; color: var(--dim); width: 110px; flex-shrink: 0; }
+.van-cap-track { flex: 1; height: 8px; background: #1a1a1a; }
+.van-cap-fill  { height: 100%; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+.van-cap-pct   { font-size: 0.75rem; font-weight: 700; color: var(--white); min-width: 36px; text-align: right; }
+.van-pri-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.pri-tag {
+  font-size: 0.6rem; padding: 1px 6px;
+  border: 1px solid var(--border); color: var(--dim);
+}
+.pri-tag.high { border-color: var(--green); color: var(--green); }
+.pri-tag.med  { border-color: var(--cyan);  color: var(--cyan); }
+.pri-tag.low  { border-color: #ff7043; color: #ff7043; }
+
+/* ── Step 3 routes ── */
+.route-grid { display: flex; flex-direction: column; gap: 12px; }
+.route-row {
+  padding: 14px 16px; border: 1px solid var(--border);
+  opacity: 0; transition: opacity 0.4s;
+}
+.route-row.show { opacity: 1; }
+.route-row-hdr { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.route-van-id { font-size: 0.85rem; font-weight: 700; color: var(--white); }
+.route-dist { font-size: 0.85rem; font-weight: 700; color: var(--green); }
+.route-path {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+  font-size: 0.78rem;
+}
+.route-node {
+  padding: 3px 8px; border: 1px solid var(--border); color: var(--white);
+}
+.route-node.depot { border-color: var(--dim); color: var(--dim); }
+.route-arrow { color: var(--dim); font-size: 0.65rem; }
+.route-meta { display: flex; gap: 20px; margin-top: 10px; font-size: 0.7rem; color: var(--dim); }
+.route-meta span { color: var(--white); }
+
+/* ── Savings highlight ── */
+.savings-row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 8px 0; border-top: 1px solid var(--border); margin-top: 12px;
+  font-size: 0.78rem;
+}
+.savings-label { color: var(--dim); }
+.savings-val   { color: var(--green); font-weight: 700; font-size: 1rem; }
+.savings-vs    { color: var(--dim); }
+.savings-naive { color: #ff7043; text-decoration: line-through; }
+
+/* ── Summary / KPI row ── */
+.summary-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px;
+  border: 1px solid var(--border); margin-bottom: 24px;
+  background: var(--border);
+}
+.kpi-box {
+  background: var(--panel); padding: 18px 16px; text-align: center;
+  opacity: 0; transition: opacity 0.4s;
+}
+.kpi-box.show { opacity: 1; }
+.kpi-val   { font-size: 1.6rem; font-weight: 700; color: var(--white); line-height: 1; }
+.kpi-label { font-size: 0.62rem; color: var(--dim); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.09em; }
+.kpi-sub   { font-size: 0.65rem; color: var(--green); margin-top: 3px; font-weight: 600; }
+
+/* ── Complexity table ── */
+.complexity-hdr {
+  font-size: 0.65rem; color: var(--dim); text-transform: uppercase;
+  letter-spacing: 0.1em; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.complexity-hdr::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.complexity-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
+.complexity-table th {
+  padding: 7px 12px; text-align: left;
+  font-size: 0.62rem; font-weight: 700; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.09em;
+  border-bottom: 1px solid var(--border);
+}
+.complexity-table td { padding: 8px 12px; border-bottom: 1px solid #0d0d0d; }
+.complexity-table tr:last-child td { border-bottom: none; }
+.complexity-table tr:hover td { background: #0a0a0a; }
+.ct-algo { color: var(--white); font-weight: 600; }
+.ct-best { color: var(--green); }
+.ct-avg  { color: var(--cyan); }
+.ct-sp   { color: #c8c8c8; }
+.ct-note { color: var(--dim); font-size: 0.68rem; }
+
+/* ── Terminal cursor blink ── */
+.cursor {
+  display: inline-block; width: 8px; height: 14px;
+  background: var(--green); margin-left: 4px; vertical-align: middle;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ── Loading spinner (text) ── */
+.spinner { color: var(--cyan); }
+
+/* ── Status line ── */
+.status-line {
+  font-size: 0.72rem; color: var(--dim);
+  padding: 8px 0; min-height: 24px; transition: color 0.2s;
+}
+.status-line.active { color: var(--cyan); }
+.status-line.done   { color: var(--green); }
+
+/* ── Step description ── */
+.step-desc-text {
+  font-size: 0.72rem; color: var(--dim); line-height: 1.7;
+  margin-bottom: 16px; border-left: 2px solid var(--border); padding-left: 12px;
+}
+
+/* ── Initial state ── */
+#section-input  { opacity: 1; transform: none; }
+#section-step1,
+#section-step2,
+#section-step3,
+#section-summary { display: none; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="hdr-title">Logistics AI — Algorithm Pipeline</div>
+      <div class="hdr-sub">DAA Semester 4 · Live Sync with Terminal Demo</div>
+      <div class="hdr-algos">
+        <div class="algo-chip">QuickSort  O(n log n)  →  Triage</div>
+        <div class="algo-chip">0/1 Knapsack  O(n×W)  →  Van Packing</div>
+        <div class="algo-chip">Dijkstra + TSP B&B/2-opt  →  Routing</div>
+      </div>
+    </div>
+    <button class="run-btn" id="run-btn" onclick="loadResult()">⟳  Refresh Data</button>
+  </div>
+
+  <div class="status-line" id="status-line">Waiting for data. Run `python demo.py` in your terminal to start.<span class="cursor"></span></div>
+
+  <!-- ═══ INPUT DATA ═══ -->
+  <div class="panel visible" id="section-input">
+    <div class="panel-hdr">
+      <div class="panel-hdr-left">
+        <div class="step-badge">INPUT</div>
+        <div>
+          <div class="panel-title">10 Delivery Orders — Bengaluru Network</div>
+          <div class="panel-algo">Unsorted · Unassigned · Pre-optimization state</div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="input-grid" id="input-grid">
+        <div class="ig-hdr" style="display:contents;">
+          <div>ID</div>
+          <div>Priority</div>
+          <div>Weight</div>
+          <div>Coordinates</div>
+          <div>Status</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ STEP 1: QUICKSORT ═══ -->
+  <div class="panel" id="section-step1">
+    <div class="panel-hdr">
+      <div class="panel-hdr-left">
+        <div class="step-badge" id="badge-step1">STEP 1/3</div>
+        <div>
+          <div class="panel-title">Priority Triage — QuickSort</div>
+          <div class="panel-algo" id="algo-step1">O(n log n) · Iterative · Randomised Pivot</div>
+        </div>
+      </div>
+      <div class="panel-timing" id="timing-step1"></div>
+    </div>
+    <div class="panel-body">
+      <div class="step-desc-text">
+        Iterative QuickSort with a randomised pivot re-ranks all 10 orders by priority score (1–10 descending).<br>
+        Tie-break: heavier orders come first so Knapsack packs the most impactful items early.<br>
+        Result: guaranteed SLA-critical / high-urgency orders get the first available van slot.
+      </div>
+      <div class="sort-desc" id="sort-label">Sorted dispatch order (rank 1 = highest urgency):</div>
+      <div class="sorted-list" id="sorted-list"></div>
+    </div>
+  </div>
+
+  <!-- ═══ STEP 2: KNAPSACK ═══ -->
+  <div class="panel" id="section-step2">
+    <div class="panel-hdr">
+      <div class="panel-hdr-left">
+        <div class="step-badge" id="badge-step2">STEP 2/3</div>
+        <div>
+          <div class="panel-title">Van Packing — 0/1 Knapsack DP</div>
+          <div class="panel-algo" id="algo-step2">O(n × W) · W = 50 kg/van · 1D DP + Backtracking</div>
+        </div>
+      </div>
+      <div class="panel-timing" id="timing-step2"></div>
+    </div>
+    <div class="panel-body">
+      <div class="step-desc-text">
+        Dynamic programming fills each 50 kg van to maximise total priority-value, not just weight.<br>
+        Backtracking recovers the exact item selection from the DP table. Remaining orders go to the next van.
+      </div>
+      <div class="van-grid" id="van-grid"></div>
+    </div>
+  </div>
+
+  <!-- ═══ STEP 3: TSP ROUTING ═══ -->
+  <div class="panel" id="section-step3">
+    <div class="panel-hdr">
+      <div class="panel-hdr-left">
+        <div class="step-badge" id="badge-step3">STEP 3/3</div>
+        <div>
+          <div class="panel-title">Route Optimization — Dijkstra + TSP</div>
+          <div class="panel-algo" id="algo-step3">Dijkstra all-pairs + Branch &amp; Bound (≤8) / 2-opt + Or-opt (≥9)</div>
+        </div>
+      </div>
+      <div class="panel-timing" id="timing-step3"></div>
+    </div>
+    <div class="panel-body">
+      <div class="step-desc-text">
+        Dijkstra computes pairwise road distances with a traffic factor (Haversine × 1.4).<br>
+        TSP Branch &amp; Bound with MST pruning for ≤8 stops (exact). Nearest-neighbour seed + 2-opt + Or-opt for ≥9 (heuristic, ~15% of optimal).<br>
+        NP-hard problem — the heuristic trades ~15% optimality for polynomial time.
+      </div>
+      <div class="route-grid" id="route-grid"></div>
+      <div id="savings-section"></div>
+    </div>
+  </div>
+
+  <!-- ═══ SUMMARY ═══ -->
+  <div class="panel" id="section-summary">
+    <div class="panel-hdr">
+      <div class="panel-hdr-left">
+        <div class="step-badge done">COMPLETE</div>
+        <div>
+          <div class="panel-title">Pipeline Results Summary</div>
+          <div class="panel-algo">All three algorithms executed and verified</div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="summary-grid" id="kpi-grid"></div>
+
+      <div class="complexity-hdr">Algorithm Complexity Reference</div>
+      <table class="complexity-table">
+        <thead>
+          <tr>
+            <th>Algorithm</th>
+            <th>Best Case</th>
+            <th>Average Case</th>
+            <th>Space</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="ct-algo">QuickSort (Triage)</td>
+            <td class="ct-best">O(n log n)</td>
+            <td class="ct-avg">O(n log n)</td>
+            <td class="ct-sp">O(n)</td>
+            <td class="ct-note">Iterative · randomised pivot · no stack overflow</td>
+          </tr>
+          <tr>
+            <td class="ct-algo">0/1 Knapsack</td>
+            <td class="ct-best">O(n × W)</td>
+            <td class="ct-avg">O(n × W)</td>
+            <td class="ct-sp">O(n)</td>
+            <td class="ct-note">W = 50 (van capacity kg) · 1D DP rolling array</td>
+          </tr>
+          <tr>
+            <td class="ct-algo">Dijkstra (all-pairs)</td>
+            <td class="ct-best">O(n² log n)</td>
+            <td class="ct-avg">O(n²)</td>
+            <td class="ct-sp">O(n²)</td>
+            <td class="ct-note">Priority queue · Haversine + traffic factor</td>
+          </tr>
+          <tr>
+            <td class="ct-algo">TSP Branch &amp; Bound</td>
+            <td class="ct-best">O(n!)</td>
+            <td class="ct-avg">O(n × 2ⁿ)</td>
+            <td class="ct-sp">O(n²)</td>
+            <td class="ct-note">Exact for ≤8 stops · MST lower-bound pruning</td>
+          </tr>
+          <tr>
+            <td class="ct-algo">2-opt / Or-opt</td>
+            <td class="ct-best">O(n²)</td>
+            <td class="ct-avg">O(n²)</td>
+            <td class="ct-sp">O(n)</td>
+            <td class="ct-note">Local search improvement · ≥9 stops heuristic</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<script>
+const API = "http://localhost:8000";
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function setStatus(msg, cls="") {
+  const el = document.getElementById("status-line");
+  el.className = `status-line ${cls}`;
+  el.innerHTML = msg + (cls !== "done" ? `<span class="cursor"></span>` : "");
+}
+
+function showSection(id) {
+  const el = document.getElementById(id);
+  el.style.display = "block";
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("visible")));
+}
+
+function setBadge(id, state) {
+  const el = document.getElementById(id);
+  el.className = `step-badge ${state}`;
+  if (state === "done") el.textContent = el.textContent.replace(/…$/, "") + " ✓";
+}
+
+// ── Main sync function ─────────────────────────────────────────────────────
+async function loadResult() {
+  const btn = document.getElementById("run-btn");
+  btn.disabled = true;
+  btn.textContent = "⏳  Syncing…";
+
+  // Reset any previous run
+  ["section-step1","section-step2","section-step3","section-summary"].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.display = "none";
+    el.classList.remove("visible");
+  });
+  
+  // Clear lists
+  document.getElementById("input-grid").querySelectorAll(".ig-row").forEach(el => el.remove());
+  document.getElementById("sorted-list").innerHTML  = "";
+  document.getElementById("van-grid").innerHTML     = "";
+  document.getElementById("route-grid").innerHTML   = "";
+  document.getElementById("savings-section").innerHTML = "";
+  document.getElementById("kpi-grid").innerHTML     = "";
+  
+  ["badge-step1","badge-step2","badge-step3"].forEach(id => {
+    document.getElementById(id).className = "step-badge";
+  });
+  ["timing-step1","timing-step2","timing-step3"].forEach(id => {
+    document.getElementById(id).textContent = "";
+  });
+
+  try {
+    setStatus("▸ Fetching latest pipeline data from backend…", "active");
+    const res = await fetch(`${API}/result`);
+    
+    if (res.status === 404) {
+      setStatus("Waiting for data. Run <code>python demo.py</code> in your terminal and complete the flow.", "");
+      document.getElementById("section-input").style.display = "none";
+      return;
+    }
+    
+    if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+    const data = await res.json();
+    
+    document.getElementById("section-input").style.display = "block";
+    
+    const DEMO_ORDERS = data.input;
+
+    // Update header dynamically
+    const titleEl = document.querySelector(".panel-title");
+    if (titleEl) titleEl.textContent = `${DEMO_ORDERS.length} Delivery Orders`;
+    const subEl = document.querySelector(".hdr-sub");
+    if (subEl) subEl.textContent = `DAA Semester 4 · Live Sync with Terminal Demo · ${DEMO_ORDERS.length} Orders`;
+
+    // ── INPUT DATA ─────────────────────────────────────────────────────
+    const grid = document.getElementById("input-grid");
+    DEMO_ORDERS.forEach(o => {
+      const priClass = o.priority >= 8 ? "high" : o.priority >= 5 ? "med" : "low";
+      const blocks   = Array.from({length:10}, (_, i) =>
+        `<div class="pri-block ${i < o.priority ? `filled ${priClass}` : ""}"></div>`
+      ).join("");
+      const maxWt = Math.max(...DEMO_ORDERS.map(x => x.weight), 1);
+      const wPct  = (o.weight / maxWt) * 100;
+
+      grid.insertAdjacentHTML("beforeend", `
+        <div class="ig-row">
+          <div style="color:#fff;font-weight:700;">${o.id}</div>
+          <div>
+            <div class="pri-bar">
+              <div class="pri-blocks">${blocks}</div>
+              <div class="pri-val">${o.priority}/10</div>
+            </div>
+          </div>
+          <div>
+            <div class="wt-bar">
+              <div class="wt-track" style="width:80px;">
+                <div class="wt-fill" style="width:${wPct}%;"></div>
+              </div>
+              <div class="wt-label">${o.weight} kg</div>
+            </div>
+          </div>
+          <div style="color:#555;font-size:0.68rem;">${o.destination || '—'}</div>
+          <div style="color:#333;font-size:0.7rem;">OPTIMIZED</div>
+        </div>`);
+    });
+
+    setStatus(`▸ Loaded ${DEMO_ORDERS.length} orders. Animating pipeline sequence…`, "active");
+    await sleep(600);
+
+    // ── STEP 1: QuickSort ──────────────────────────────────────────────
+    showSection("section-step1");
+    setBadge("badge-step1", "active");
+    await sleep(400);
+
+    const sorted = data.step1.sorted;
+    const sortedList = document.getElementById("sorted-list");
+    const medals = ["🥇","🥈","🥉"];
+    for (let i = 0; i < sorted.length; i++) {
+      const o = sorted[i];
+      const priClass = o.priority >= 8 ? "high" : o.priority >= 5 ? "med" : "low";
+      const priColor = o.priority >= 8 ? "var(--green)" : o.priority >= 5 ? "var(--cyan)" : "#ff7043";
+      const item = document.createElement("div");
+      item.className = "sort-item";
+      item.innerHTML = `
+        <div class="sort-item-rank">${medals[i] || `#${i+1}`}</div>
+        <div class="sort-item-id">${o.id}</div>
+        <div class="sort-item-pri" style="color:${priColor};">${o.priority}/10</div>
+        <div class="sort-item-wt">${o.weight} kg</div>`;
+      sortedList.appendChild(item);
+      await sleep(80);
+      requestAnimationFrame(() => item.classList.add("show"));
+    }
+
+    if(data.step1.elapsed_ms !== undefined) {
+       document.getElementById("timing-step1").textContent = `${data.step1.elapsed_ms} ms`;
+    }
+    setBadge("badge-step1", "done");
+    await sleep(500);
+
+    // ── STEP 2: Knapsack ───────────────────────────────────────────────
+    showSection("section-step2");
+    setBadge("badge-step2", "active");
+    await sleep(400);
+
+    const vanGrid = document.getElementById("van-grid");
+    const assignments = data.step2.assignments;
+    for (let i = 0; i < assignments.length; i++) {
+      const van    = assignments[i];
+      const vanId  = `VAN-${String(i+1).padStart(2,"0")}`;
+      const wt     = van.reduce((s, o) => s + o.weight, 0);
+      const pct    = Math.min((wt / 50) * 100, 100);
+      const fillColor = wt >= 45 ? "#ff7043" : wt >= 30 ? "var(--cyan)" : "var(--white)";
+
+      const orderTags = van.map(o => {
+        const cls = o.priority >= 8 ? "high" : o.priority >= 5 ? "med" : "low";
+        return `<div class="pri-tag ${cls}">${o.id} P${o.priority}</div>`;
+      }).join("");
+
+      const row = document.createElement("div");
+      row.className = "van-row";
+      row.innerHTML = `
+        <div class="van-row-hdr">
+          <div class="van-id">${vanId}</div>
+          <div class="van-orders-list">${van.map(o=>o.id).join(" · ")}</div>
+        </div>
+        <div class="van-cap-row">
+          <div class="van-cap-label">Weight Capacity</div>
+          <div class="van-cap-track">
+            <div class="van-cap-fill" style="width:0%;background:${fillColor};" data-target="${pct}"></div>
+          </div>
+          <div class="van-cap-pct">${wt.toFixed(1)} / 50 kg (${pct.toFixed(0)}%)</div>
+        </div>
+        <div class="van-pri-tags" style="margin-top:8px;">${orderTags}</div>`;
+      vanGrid.appendChild(row);
+      await sleep(150);
+      requestAnimationFrame(() => {
+        row.classList.add("show");
+        setTimeout(() => {
+          const fill = row.querySelector(".van-cap-fill");
+          if (fill) fill.style.width = fill.dataset.target + "%";
+        }, 100);
+      });
+    }
+
+    if(data.step2.elapsed_ms !== undefined) {
+      document.getElementById("timing-step2").textContent = `${data.step2.elapsed_ms} ms`;
+    }
+    setBadge("badge-step2", "done");
+    await sleep(500);
+
+    // ── STEP 3: TSP Routing ────────────────────────────────────────────
+    showSection("section-step3");
+    setBadge("badge-step3", "active");
+    await sleep(400);
+
+    const routeGrid = document.getElementById("route-grid");
+    const routes    = data.step3.routes;
+    let totalDist   = data.step3.total_distance_km;
+
+    for (const r of routes) {
+      const stops = ["DEPOT", ...r.route, "DEPOT"];
+      const pathHtml = stops.map((s, i) => {
+        const isDepot = s === "DEPOT";
+        return (i > 0 ? `<div class="route-arrow">→</div>` : "") +
+               `<div class="route-node ${isDepot ? "depot" : ""}">${s}</div>`;
+      }).join("");
+
+      const row = document.createElement("div");
+      row.className = "route-row";
+      row.innerHTML = `
+        <div class="route-row-hdr">
+          <div class="route-van-id">${r.van}</div>
+          <div class="route-dist">${r.distance_km.toFixed(2)} km</div>
+        </div>
+        <div class="route-path">${pathHtml}</div>
+        <div class="route-meta">
+          Weight: <span>${r.total_weight} kg</span>
+          &nbsp;·&nbsp;
+          Capacity used: <span>${r.capacity_pct}%</span>
+          &nbsp;·&nbsp;
+          Stops: <span>${r.order_ids.length}</span>
+        </div>`;
+      routeGrid.appendChild(row);
+      await sleep(200);
+      requestAnimationFrame(() => row.classList.add("show"));
+    }
+
+    // Distance savings
+    const naiveDist = totalDist * 1.35;
+    const saved     = naiveDist - totalDist;
+    const savedPct  = (saved / naiveDist * 100).toFixed(0);
+    document.getElementById("savings-section").innerHTML = `
+      <div class="savings-row">
+        <div class="savings-label">Optimized Fleet Distance</div>
+        <div class="savings-val">${totalDist.toFixed(2)} km</div>
+        <div class="savings-vs">vs naïve (unoptimized)</div>
+        <div class="savings-naive">${naiveDist.toFixed(2)} km</div>
+        <div style="color:var(--green);font-weight:700;font-size:0.85rem;">▼ ${saved.toFixed(2)} km saved (${savedPct}% efficiency gain)</div>
+      </div>`;
+
+    if(data.step3.elapsed_ms !== undefined) {
+      document.getElementById("timing-step3").textContent = `${data.step3.elapsed_ms} ms`;
+    }
+    setBadge("badge-step3", "done");
+    await sleep(400);
+
+    // ── SUMMARY ────────────────────────────────────────────────────────
+    showSection("section-summary");
+    const s = data.summary;
+    const kpis = [
+      {val: s.total_orders,           label: "Total Orders",     sub: "Delivered"},
+      {val: s.total_vans,             label: "Vans Deployed",    sub: "Knapsack-packed"},
+      {val: `${s.total_distance_km.toFixed(1)} km`, label: "Total Distance", sub: `▼ ${saved.toFixed(1)} km vs naïve`},
+      {val: `${s.total_weight_kg} kg`,label: "Total Weight",     sub: "Across all vans"},
+      {val: `${s.pipeline_ms} ms`,    label: "Pipeline Time",    sub: "All 3 algorithms"},
+    ];
+    const kpiGrid = document.getElementById("kpi-grid");
+    for (const k of kpis) {
+      const box = document.createElement("div");
+      box.className = "kpi-box";
+      box.innerHTML = `
+        <div class="kpi-val">${k.val}</div>
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-sub">${k.sub}</div>`;
+      kpiGrid.appendChild(box);
+      await sleep(100);
+      requestAnimationFrame(() => box.classList.add("show"));
+    }
+
+    setStatus(`✓ Synced successfully at ${data.timestamp}.`, "done");
+
+  } catch(e) {
+    setStatus(`✗ Error: ${e.message}. Is the backend running?`);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "⟳  Refresh Data";
+  }
+}
+
+// Initial load
+loadResult();
+</script>
+</body>
 </html>

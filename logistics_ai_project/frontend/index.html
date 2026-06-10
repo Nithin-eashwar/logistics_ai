@@ -317,7 +317,7 @@ body::after {
       <div class="hdr-sub">DAA Semester 4 · Live Sync with Terminal Demo</div>
       <div class="hdr-algos">
         <div class="algo-chip">QuickSort  O(n log n)  →  Triage</div>
-        <div class="algo-chip">0/1 Knapsack  O(n×W)  →  Van Packing</div>
+        <div class="algo-chip">K-Means + 0/1 Knapsack  →  Spatial Packing</div>
         <div class="algo-chip">Dijkstra + TSP B&B/2-opt  →  Routing</div>
       </div>
     </div>
@@ -379,16 +379,16 @@ body::after {
       <div class="panel-hdr-left">
         <div class="step-badge" id="badge-step2">STEP 2/3</div>
         <div>
-          <div class="panel-title">Van Packing — 0/1 Knapsack DP</div>
-          <div class="panel-algo" id="algo-step2">O(n × W) · W = 50 kg/van · 1D DP + Backtracking</div>
+          <div class="panel-title">Van Packing — K-Means + Knapsack DP</div>
+          <div class="panel-algo" id="algo-step2">O(k·n·i) + O(n × W) · Spatial Clusters · 1D DP</div>
         </div>
       </div>
       <div class="panel-timing" id="timing-step2"></div>
     </div>
     <div class="panel-body">
       <div class="step-desc-text">
-        Dynamic programming fills each 50 kg van to maximise total priority-value, not just weight.<br>
-        Backtracking recovers the exact item selection from the DP table. Remaining orders go to the next van.
+        First, orders are clustered into geographic zones using K-Means to ensure vans don't drive across the city.<br>
+        Then, dynamic programming fills each 50 kg van to maximise total priority-value per cluster.
       </div>
       <div class="van-grid" id="van-grid"></div>
     </div>
@@ -451,11 +451,11 @@ body::after {
             <td class="ct-note">Iterative · randomised pivot · no stack overflow</td>
           </tr>
           <tr>
-            <td class="ct-algo">0/1 Knapsack</td>
+            <td class="ct-algo">K-Means + Knapsack</td>
             <td class="ct-best">O(n × W)</td>
-            <td class="ct-avg">O(n × W)</td>
+            <td class="ct-avg">O(k·n·i)</td>
             <td class="ct-sp">O(n)</td>
-            <td class="ct-note">W = 50 (van capacity kg) · 1D DP rolling array</td>
+            <td class="ct-note">W = 50 (van capacity) · clustered before packing</td>
           </tr>
           <tr>
             <td class="ct-algo">Dijkstra (all-pairs)</td>

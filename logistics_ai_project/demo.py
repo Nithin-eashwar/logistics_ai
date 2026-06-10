@@ -101,7 +101,7 @@ def print_banner() -> None:
     print()
     print(clr("  Algorithms Used:", BOLD, WHITE))
     print(clr("    1. ", DIM) + clr("QuickSort (iterative + randomised pivot)", YELLOW) + clr("  →  Triage / Priority Sort", DIM))
-    print(clr("    2. ", DIM) + clr("0/1 Knapsack (1D DP + backtracking)    ", MAGENTA) + clr("  →  Van Packing", DIM))
+    print(clr("    2. ", DIM) + clr("K-Means + 0/1 Knapsack (1D DP)         ", MAGENTA) + clr("  →  Spatial Packing", DIM))
     print(clr("    3. ", DIM) + clr("Dijkstra + TSP (B&B / 2-opt / Or-opt)  ", GREEN)   + clr("  →  Route Optimization", DIM))
 
 
@@ -250,13 +250,13 @@ def show_triage(orders: list[Order]) -> list[Order]:
 # PHASE 2 — 0/1 Knapsack Van Assignment
 # ─────────────────────────────────────────────────────────────────
 def show_knapsack(sorted_orders: list[Order]) -> list[list[Order]]:
-    step(2, "VAN PACKING — Assign orders to vans", "0/1 Knapsack  ·  O(n × W) DP  ·  capacity = 50 kg/van")
+    step(2, "VAN PACKING — Assign orders to vans", "K-Means Spatial Clustering + 0/1 Knapsack DP")
 
     print(clr("\n  Concept:", BOLD, WHITE))
-    print(clr("  Each van carries up to 50 kg. The DP table maximises total priority", DIM))
-    print(clr("  value (not just weight) per van — so high-priority orders get", DIM))
-    print(clr("  dispatched first. After packing one van, remaining orders go to", DIM))
-    print(clr("  the next van. This repeats until all orders are assigned.", DIM))
+    print(clr("  First, orders are clustered into geographic zones using K-Means to ensure", DIM))
+    print(clr("  vans don't drive across the city. Then, each van carries up to 50 kg.", DIM))
+    print(clr("  The DP table maximises total priority value per zone — so high-priority", DIM))
+    print(clr("  orders get dispatched first. Remaining orders go to the next van.", DIM))
 
     print(clr("\n  Packing vans…", YELLOW))
     pause(400)
@@ -395,7 +395,7 @@ def show_complexity() -> None:
     print()
     rows = [
         ("QuickSort (Triage)",   "O(n log n)", "O(n log n)", "O(n)",  "Iterative, randomised pivot"),
-        ("0/1 Knapsack",         "O(n × W)",   "O(n × W)",   "O(n)",  "W = 50 (van capacity kg)"),
+        ("K-Means + Knapsack",   "O(n × W)",   "O(k·n·i)",   "O(n)",  "W = 50 (van capacity kg)"),
         ("Dijkstra (all-pairs)", "O(n² log n)","O(n²)",      "O(n²)", "Priority queue + Haversine"),
         ("TSP Branch & Bound",   "O(n!)",      "O(n × 2ⁿ)",  "O(n²)", "≤8 nodes exact, else heuristic"),
         ("2-opt / Or-opt",       "O(n²)",      "O(n²)",      "O(n)",  "Local search improvement"),
@@ -452,8 +452,8 @@ def save_results(orders, sorted_orders, van_assignments, route_results, total_el
             ],
         },
         "step2": {
-            "algorithm":   "0/1 Knapsack",
-            "complexity":  "O(n × W)",
+            "algorithm":   "K-Means + 0/1 Knapsack",
+            "complexity":  "O(k*n*i) + O(n × W)",
             "van_count":   len(van_assignments),
             "assignments": [
                 [{"id": o.id, "weight": o.weight, "priority": o.priority,

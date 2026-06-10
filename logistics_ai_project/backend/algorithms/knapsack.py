@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import logging
 
+import math
+
 from backend.models.schemas import Order
+from backend.algorithms.clustering import kmeans_cluster
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +88,7 @@ def assign_orders_to_vans(
     max_weight: int = MAX_WEIGHT_PER_VAN,
 ) -> list[list[Order]]:
     """
-    Assign orders to vans using repeated 0/1 knapsack.
+    Assign orders to vans using K-Means spatial clustering followed by repeated 0/1 knapsack.
 
     Each van has a maximum payload of *max_weight* kg.
     Returns a list of order-groups, one per van.
@@ -95,11 +98,21 @@ def assign_orders_to_vans(
 
     _validate_orders(orders)
 
-    remaining = list(orders)
+    # Calculate optimal number of clusters (vans)
+    total_weight = sum(o.weight for o in orders)
+    k = max(1, int(math.ceil(total_weight / max_weight)))
+
+    # Phase 1: Spatial Clustering
+    # Group orders that are geographically close so vans don't travel across the city
+    clusters = kmeans_cluster(orders, k)
     vans: list[list[Order]] = []
 
-    while remaining:
-        selected = _knapsack_01(remaining, max_weight)
+    # Phase 2: Knapsack packing per cluster
+    for cluster in clusters:
+        remaining = list(cluster)
+        
+        while remaining:
+            selected = _knapsack_01(remaining, max_weight)
 
         if not selected:
             # Edge case: the lightest remaining order still exceeds capacity.

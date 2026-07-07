@@ -114,22 +114,23 @@ def assign_orders_to_vans(
         while remaining:
             selected = _knapsack_01(remaining, max_weight)
 
-        if not selected:
-            # Edge case: the lightest remaining order still exceeds capacity.
-            # Force-assign orders one-by-one from lightest to heaviest.
-            remaining.sort(key=lambda o: o.weight)
-            selected = [remaining[0]]
-            logger.warning(
-                "Order %s (%.1f kg) exceeds van capacity %d kg — "
-                "force-assigned to its own van.",
-                remaining[0].id,
-                remaining[0].weight,
-                max_weight,
-            )
+            if not selected:
+                # Edge case: the lightest remaining order still exceeds capacity.
+                # Force-assign orders one-by-one from lightest to heaviest.
+                remaining.sort(key=lambda o: o.weight)
+                selected = [remaining[0]]
+                logger.warning(
+                    "Order %s (%.1f kg) exceeds van capacity %d kg — "
+                    "force-assigned to its own van.",
+                    remaining[0].id,
+                    remaining[0].weight,
+                    max_weight,
+                )
 
-        vans.append(selected)
-        selected_ids = {o.id for o in selected}
-        remaining = [o for o in remaining if o.id not in selected_ids]
+            vans.append(selected)
+            selected_ids = {o.id for o in selected}
+            remaining = [o for o in remaining if o.id not in selected_ids]
+
 
     logger.info(
         "Assigned %d orders across %d vans (max %.0f kg each)",

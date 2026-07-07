@@ -1,5 +1,6 @@
 """Pydantic models for request/response validation."""
 
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -13,6 +14,10 @@ class Order(BaseModel):
     lng: float = Field(ge=-180, le=180, description="Longitude in degrees")
     weight: float = Field(gt=0, le=500, description="Weight of the order in kg")
     priority: int = Field(ge=1, le=10, description="Priority from 1 (low) to 10 (high)")
+    deadline: Optional[datetime] = Field(
+        default=None,
+        description="Optional delivery deadline (ISO 8601). Earlier deadlines increase urgency.",
+    )
     destination: Optional[str] = Field(
         default=None,
         max_length=128,

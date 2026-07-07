@@ -19,6 +19,7 @@ import os
 import random
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # ── Rich terminal colours (no external deps) ──────────────────────
@@ -161,6 +162,26 @@ def get_orders_interactively() -> list[dict]:
             except ValueError:
                 print(clr("    ✗  Enter a whole number (e.g. 7).", RED))
 
+        # Deadline (optional)
+        print(clr("    Deadline     [leave blank = none, or e.g. +2h / +30m / YYYY-MM-DD HH:MM]: ", CYAN), end="")
+        raw_dl = input().strip()
+        deadline_iso: str | None = None
+        if raw_dl:
+            now = datetime.now(tz=timezone.utc)
+            # Shorthand helpers: +Nh = N hours, +Nm = N minutes
+            if raw_dl.startswith("+") and raw_dl.endswith("h") and raw_dl[1:-1].isdigit():
+                dl = now + timedelta(hours=int(raw_dl[1:-1]))
+                deadline_iso = dl.isoformat()
+            elif raw_dl.startswith("+") and raw_dl.endswith("m") and raw_dl[1:-1].isdigit():
+                dl = now + timedelta(minutes=int(raw_dl[1:-1]))
+                deadline_iso = dl.isoformat()
+            else:
+                try:
+                    dl = datetime.strptime(raw_dl, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+                    deadline_iso = dl.isoformat()
+                except ValueError:
+                    print(clr("    ✗  Unrecognised format — deadline ignored.", RED))
+
         # Destination (label only — coords are auto-generated)
         raw_d = input(clr("    Destination  [area/city]: ", CYAN)).strip()
         destination = raw_d if raw_d else f"Zone-{i+1}"
@@ -172,9 +193,11 @@ def get_orders_interactively() -> list[dict]:
         orders.append({
             "id": oid, "lat": lat, "lng": lng,
             "weight": weight, "priority": priority,
+            "deadline": deadline_iso,
             "destination": destination,
         })
-        print(clr(f"    ✓  Added  {oid}  |  {weight} kg  |  P{priority}  |  {destination}", GREEN))
+        dl_label = deadline_iso[:16] if deadline_iso else "none"
+        print(clr(f"    ✓  Added  {oid}  |  {weight} kg  |  P{priority}  |  deadline={dl_label}  |  {destination}", GREEN))
         print()
 
     return orders
@@ -227,16 +250,18 @@ def show_triage(orders: list[Order]) -> list[Order]:
     elapsed = (time.perf_counter() - t0) * 1000
 
     print()
-    print(clr(f"  {'Rank':<6} {'ID':<10} {'Dest':<14} {'Priority':>10}  {'Bar':<12} {'Weight':>8}", BOLD, WHITE))
-    print(hr("─", 70, DIM))
+    print(clr(f"  {'Rank':<6} {'ID':<10} {'Dest':<14} {'Priority':>10}  {'Bar':<12} {'Weight':>8}  {'Deadline':<20}", BOLD, WHITE))
+    print(hr("─", 85, DIM))
     for rank, o in enumerate(sorted_orders, 1):
         pcol  = PRIORITY_COLOR[o.priority]
         pbar  = clr(PRIORITY_BAR[o.priority], pcol)
         medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"  {rank}.")
         dest  = getattr(o, "destination", "—")
+        dl    = getattr(o, "deadline", None)
+        dl_str = dl.strftime("%m-%d %H:%M") if dl else clr("none", DIM)
         print(f"  {medal:<7} {clr(o.id, BOLD, WHITE):<18} {dest:<14} "
               f"{clr(str(o.priority), pcol):>6}/10  {pbar}  "
-              f"{clr(str(o.weight)+' kg', CYAN):>8}")
+              f"{clr(str(o.weight)+' kg', CYAN):>8}  {clr(dl_str, YELLOW):<20}")
         pause(60)
 
     print()
@@ -439,6 +464,7 @@ def save_results(orders, sorted_orders, van_assignments, route_results, total_el
         "input": [
             {"id": o.id, "weight": o.weight, "priority": o.priority,
              "lat": o.lat, "lng": o.lng,
+             "deadline": o.deadline.isoformat() if o.deadline else None,
              "destination": getattr(o, "destination", "—")}
             for o in orders
         ],
@@ -447,6 +473,7 @@ def save_results(orders, sorted_orders, van_assignments, route_results, total_el
             "complexity": "O(n log n)",
             "sorted": [
                 {"id": o.id, "priority": o.priority, "weight": o.weight,
+                 "deadline": o.deadline.isoformat() if o.deadline else None,
                  "destination": getattr(o, "destination", "—")}
                 for o in sorted_orders
             ],
@@ -517,12 +544,13 @@ def main() -> None:
         destination: str = "—"
 
     orders_with_dest = []
-    for o_obj, raw in zip(orders, [r | {"destination": r.get("destination", "—")} for r in
-                                    [{**ro, "destination": ro.get("destination", "—")} for ro in
-                                     [{k: v for k, v in ro.items()} for ro in
-                                      [dict(id=o.id, lat=o.lat, lng=o.lng, weight=o.weight,
-                                            priority=o.priority, destination=raw_orders[i].get("destination","—"))
-                                       for i, o in enumerate(orders)]]]]):
+    for i, o_obj in enumerate(orders):
+        raw = dict(
+            id=o_obj.id, lat=o_obj.lat, lng=o_obj.lng,
+            weight=o_obj.weight, priority=o_obj.priority,
+            deadline=raw_orders[i].get("deadline"),
+            destination=raw_orders[i].get("destination", "—"),
+        )
         try:
             ow = OrderWithDest(**raw)
         except Exception:

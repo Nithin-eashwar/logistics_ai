@@ -1,20 +1,42 @@
-"""Triage module: QuickSort orders by priority (descending), with weight tie-breaking."""
+"""Triage module: QuickSort orders by priority (descending), with deadline and weight tie-breaking."""
 
 from __future__ import annotations
 
 import random
+from datetime import datetime, timezone
 
 from backend.models.schemas import Order
 
+# Sentinel used for orders with no deadline — treated as "least urgent" among equals.
+_FAR_FUTURE = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
-def _sort_key(order: Order) -> tuple[int, float]:
-    """
-    Sort key: primary = priority descending, secondary = weight descending.
 
-    Heavier orders first on equal priority ensures the knapsack
-    packs the most impactful items early.
+def _deadline_key(order: Order) -> datetime:
     """
-    return (-order.priority, -order.weight)
+    Return a timezone-aware datetime for sorting.
+
+    Orders with no deadline are assigned a far-future sentinel so they
+    sort after orders that *do* have a deadline (for the same priority).
+    """
+    if order.deadline is None:
+        return _FAR_FUTURE
+    # Make timezone-naive deadlines UTC-aware so comparison never raises.
+    dl = order.deadline
+    if dl.tzinfo is None:
+        dl = dl.replace(tzinfo=timezone.utc)
+    return dl
+
+
+def _sort_key(order: Order) -> tuple:
+    """
+    Sort key: primary   = priority descending (higher first)
+              secondary = deadline ascending  (earlier deadline first)
+              tertiary  = weight descending   (heavier first, for knapsack fit)
+
+    Orders with no deadline are treated as the least time-sensitive within
+    their priority band — they sort after deadline-bound orders of equal priority.
+    """
+    return (-order.priority, _deadline_key(order), -order.weight)
 
 
 def _partition(orders: list[Order], low: int, high: int) -> int:

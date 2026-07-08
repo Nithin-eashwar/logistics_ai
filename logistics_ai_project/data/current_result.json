@@ -1,53 +1,14 @@
 {
-  "timestamp": "2026-06-10 21:57:04",
+  "timestamp": "2026-07-08 17:03:52",
   "input": [
     {
-      "id": "12",
-      "weight": 45.0,
-      "priority": 4,
-      "lat": 13.0244,
-      "lng": 77.4857,
-      "destination": "\u2014"
-    },
-    {
-      "id": "13",
-      "weight": 23.0,
-      "priority": 1,
-      "lat": 12.8917,
-      "lng": 77.7128,
-      "destination": "\u2014"
-    },
-    {
-      "id": "14",
-      "weight": 44.0,
-      "priority": 8,
-      "lat": 12.9853,
-      "lng": 77.6197,
-      "destination": "\u2014"
-    },
-    {
-      "id": "15",
-      "weight": 33.0,
-      "priority": 6,
-      "lat": 12.9292,
-      "lng": 77.5143,
-      "destination": "\u2014"
-    },
-    {
-      "id": "2",
-      "weight": 3.0,
+      "id": "1",
+      "weight": 20.0,
       "priority": 10,
-      "lat": 13.0264,
-      "lng": 77.7056,
-      "destination": "\u2014"
-    },
-    {
-      "id": "6",
-      "weight": 50.0,
-      "priority": 9,
-      "lat": 13.0806,
-      "lng": 77.7038,
-      "destination": "\u2014"
+      "lat": 12.866,
+      "lng": 77.5324,
+      "deadline": "2026-07-22T07:30:00+00:00",
+      "destination": "12.8660, 77.5324"
     }
   ],
   "step1": {
@@ -55,92 +16,25 @@
     "complexity": "O(n log n)",
     "sorted": [
       {
-        "id": "2",
+        "id": "1",
         "priority": 10,
-        "weight": 3.0,
-        "destination": "\u2014"
-      },
-      {
-        "id": "6",
-        "priority": 9,
-        "weight": 50.0,
-        "destination": "\u2014"
-      },
-      {
-        "id": "14",
-        "priority": 8,
-        "weight": 44.0,
-        "destination": "\u2014"
-      },
-      {
-        "id": "15",
-        "priority": 6,
-        "weight": 33.0,
-        "destination": "\u2014"
-      },
-      {
-        "id": "12",
-        "priority": 4,
-        "weight": 45.0,
-        "destination": "\u2014"
-      },
-      {
-        "id": "13",
-        "priority": 1,
-        "weight": 23.0,
-        "destination": "\u2014"
+        "weight": 20.0,
+        "deadline": "2026-07-22T07:30:00+00:00",
+        "destination": "12.8660, 77.5324"
       }
     ]
   },
   "step2": {
-    "algorithm": "0/1 Knapsack",
-    "complexity": "O(n \u00d7 W)",
-    "van_count": 5,
+    "algorithm": "K-Means + 0/1 Knapsack",
+    "complexity": "O(k*n*i) + O(n \u00d7 W)",
+    "van_count": 1,
     "assignments": [
       [
         {
-          "id": "14",
-          "weight": 44.0,
-          "priority": 8,
-          "destination": "\u2014"
-        },
-        {
-          "id": "2",
-          "weight": 3.0,
+          "id": "1",
+          "weight": 20.0,
           "priority": 10,
-          "destination": "\u2014"
-        }
-      ],
-      [
-        {
-          "id": "6",
-          "weight": 50.0,
-          "priority": 9,
-          "destination": "\u2014"
-        }
-      ],
-      [
-        {
-          "id": "15",
-          "weight": 33.0,
-          "priority": 6,
-          "destination": "\u2014"
-        }
-      ],
-      [
-        {
-          "id": "12",
-          "weight": 45.0,
-          "priority": 4,
-          "destination": "\u2014"
-        }
-      ],
-      [
-        {
-          "id": "13",
-          "weight": 23.0,
-          "priority": 1,
-          "destination": "\u2014"
+          "destination": "12.8660, 77.5324"
         }
       ]
     ]
@@ -152,121 +46,32 @@
       {
         "van": "VAN-01",
         "order_ids": [
-          "14",
-          "2"
+          "1"
         ],
         "weights": [
-          44.0,
-          3.0
+          20.0
         ],
         "priorities": [
-          8,
           10
         ],
         "destinations": [
-          "\u2014",
-          "\u2014"
+          "12.8660, 77.5324"
         ],
         "route": [
-          "14",
-          "2"
+          "1"
         ],
-        "distance_km": 12.84,
-        "total_weight": 47.0,
-        "capacity_pct": 94.0
-      },
-      {
-        "van": "VAN-02",
-        "order_ids": [
-          "6"
-        ],
-        "weights": [
-          50.0
-        ],
-        "priorities": [
-          9
-        ],
-        "destinations": [
-          "\u2014"
-        ],
-        "route": [
-          "6"
-        ],
-        "distance_km": 0.0,
-        "total_weight": 50.0,
-        "capacity_pct": 100.0
-      },
-      {
-        "van": "VAN-03",
-        "order_ids": [
-          "15"
-        ],
-        "weights": [
-          33.0
-        ],
-        "priorities": [
-          6
-        ],
-        "destinations": [
-          "\u2014"
-        ],
-        "route": [
-          "15"
-        ],
-        "distance_km": 0.0,
-        "total_weight": 33.0,
-        "capacity_pct": 66.0
-      },
-      {
-        "van": "VAN-04",
-        "order_ids": [
-          "12"
-        ],
-        "weights": [
-          45.0
-        ],
-        "priorities": [
-          4
-        ],
-        "destinations": [
-          "\u2014"
-        ],
-        "route": [
-          "12"
-        ],
-        "distance_km": 0.0,
-        "total_weight": 45.0,
-        "capacity_pct": 90.0
-      },
-      {
-        "van": "VAN-05",
-        "order_ids": [
-          "13"
-        ],
-        "weights": [
-          23.0
-        ],
-        "priorities": [
-          1
-        ],
-        "destinations": [
-          "\u2014"
-        ],
-        "route": [
-          "13"
-        ],
-        "distance_km": 0.0,
-        "total_weight": 23.0,
-        "capacity_pct": 46.0
+        "distance_km": 34.28,
+        "total_weight": 20.0,
+        "capacity_pct": 40.0
       }
     ],
-    "total_distance_km": 12.84
+    "total_distance_km": 34.28
   },
   "summary": {
-    "total_orders": 6,
-    "total_vans": 5,
-    "total_weight_kg": 198.0,
-    "total_distance_km": 12.84,
-    "pipeline_ms": 7289.96
+    "total_orders": 1,
+    "total_vans": 1,
+    "total_weight_kg": 20.0,
+    "total_distance_km": 34.28,
+    "pipeline_ms": 4546.67
   }
 }

@@ -157,10 +157,14 @@ class _DistanceMatrix:
 
 
 def _total_route_distance(dm: _DistanceMatrix, route: list[str]) -> float:
-    """Compute total distance of a route using the distance matrix."""
+    """Compute total distance of a route using the distance matrix (includes cycle return edge)."""
+    if len(route) <= 1:
+        return 0.0
     total = 0.0
     for i in range(len(route) - 1):
         total += dm.get(route[i], route[i + 1])
+    # Add distance to close the cycle
+    total += dm.get(route[-1], route[0])
     return total
 
 
@@ -258,13 +262,15 @@ def _exact_bb(dm: _DistanceMatrix, nodes: list[str]) -> list[str]:
             return
 
         if not remaining:
-            if cost < best_dist:
-                best_dist = cost
+            # Cycle closure cost
+            cycle_cost = cost + dm.get(path[-1], path[0])
+            if cycle_cost < best_dist:
+                best_dist = cycle_cost
                 best_route = path[:]
             return
 
-        # MST lower-bound pruning
-        lb = cost + _mst_lower_bound(dm, remaining, path[-1])
+        # MST lower-bound pruning (tighter cycle bound by including return to start)
+        lb = cost + _mst_lower_bound(dm, remaining, path[-1]) + min(dm.get(n, path[0]) for n in remaining)
         if lb >= best_dist:
             return
 
@@ -384,13 +390,20 @@ def compute_van_route(orders: list[Order]) -> tuple[list[str], float]:
     if not orders:
         return [], 0.0
 
-    if len(orders) == 1:
-        return [orders[0].id], 0.0
+    # Model the DEPOT as a central location to fix the 0km distance bug
+    depot = Order(id="DEPOT", lat=12.9716, lng=77.5946, weight=0.1, priority=1)
+    all_nodes = [depot] + orders
 
-    G = build_graph(orders, use_osrm=True)
+    G = build_graph(all_nodes, use_osrm=True)
     dm = _DistanceMatrix(G)
-    node_ids = [o.id for o in orders]
+    node_ids = [o.id for o in all_nodes]
+    
     optimal_route = _tsp_branch_and_bound(dm, node_ids)
     total_distance = _total_route_distance(dm, optimal_route)
 
-    return optimal_route, round(total_distance, 2)
+    # Shift cycle so DEPOT is first
+    idx = optimal_route.index("DEPOT")
+    rotated = optimal_route[idx:] + optimal_route[:idx]
+
+    # Frontend visually adds the DEPOT nodes, so we omit it from the returned array
+    return rotated[1:], round(total_distance, 2)

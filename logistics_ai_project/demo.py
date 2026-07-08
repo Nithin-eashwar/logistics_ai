@@ -209,14 +209,14 @@ def get_orders_interactively() -> list[dict]:
 def show_input(orders: list[Order]) -> None:
     section(f"INPUT DATA — {len(orders)} Delivery Orders", "📦", BLUE)
     print()
-    print(clr(f"  {'ID':<8} {'Dest':<14} {'Priority':>10}  {'Bar':<12} {'Weight':>8}  {'Bar':<12}", BOLD, WHITE))
-    print(hr("─", 75, DIM))
+    print(clr(f"  {'ID':<8} {'Coordinates':<17} {'Priority':>10}  {'Bar':<12} {'Weight':>8}  {'Bar':<12}", BOLD, WHITE))
+    print(hr("─", 78, DIM))
     for o in orders:
         pcol = PRIORITY_COLOR[o.priority]
         pbar = clr(PRIORITY_BAR[o.priority], pcol)
         wbar = clr(WEIGHT_BAR(int(o.weight)), BLUE)
-        dest = getattr(o, "destination", "—")
-        print(f"  {clr(o.id, BOLD, WHITE):<16} {dest:<14} "
+        dest = f"{o.lat:.4f}, {o.lng:.4f}"
+        print(f"  {clr(o.id, BOLD, WHITE):<16} {dest:<17} "
               f"{clr(str(o.priority), pcol):>6}/10  {pbar}  "
               f"{clr(str(o.weight)+' kg', CYAN):>8}  {wbar}")
         pause(80)
@@ -250,16 +250,16 @@ def show_triage(orders: list[Order]) -> list[Order]:
     elapsed = (time.perf_counter() - t0) * 1000
 
     print()
-    print(clr(f"  {'Rank':<6} {'ID':<10} {'Dest':<14} {'Priority':>10}  {'Bar':<12} {'Weight':>8}  {'Deadline':<20}", BOLD, WHITE))
-    print(hr("─", 85, DIM))
+    print(clr(f"  {'Rank':<6} {'ID':<10} {'Coordinates':<17} {'Priority':>10}  {'Bar':<12} {'Weight':>8}  {'Deadline':<20}", BOLD, WHITE))
+    print(hr("─", 88, DIM))
     for rank, o in enumerate(sorted_orders, 1):
         pcol  = PRIORITY_COLOR[o.priority]
         pbar  = clr(PRIORITY_BAR[o.priority], pcol)
         medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"  {rank}.")
-        dest  = getattr(o, "destination", "—")
+        dest  = f"{o.lat:.4f}, {o.lng:.4f}"
         dl    = getattr(o, "deadline", None)
         dl_str = dl.strftime("%m-%d %H:%M") if dl else clr("none", DIM)
-        print(f"  {medal:<7} {clr(o.id, BOLD, WHITE):<18} {dest:<14} "
+        print(f"  {medal:<7} {clr(o.id, BOLD, WHITE):<18} {dest:<17} "
               f"{clr(str(o.priority), pcol):>6}/10  {pbar}  "
               f"{clr(str(o.weight)+' kg', CYAN):>8}  {clr(dl_str, YELLOW):<20}")
         pause(60)
@@ -452,7 +452,7 @@ def save_results(orders, sorted_orders, van_assignments, route_results, total_el
             "order_ids":    [o.id for o in van_orders],
             "weights":      [o.weight for o in van_orders],
             "priorities":   [o.priority for o in van_orders],
-            "destinations": [getattr(o, "destination", "—") for o in van_orders],
+            "destinations": [f"{o.lat:.4f}, {o.lng:.4f}" for o in van_orders],
             "route":        route_path,
             "distance_km":  round(dist, 2),
             "total_weight": round(wt, 1),
@@ -465,7 +465,7 @@ def save_results(orders, sorted_orders, van_assignments, route_results, total_el
             {"id": o.id, "weight": o.weight, "priority": o.priority,
              "lat": o.lat, "lng": o.lng,
              "deadline": o.deadline.isoformat() if o.deadline else None,
-             "destination": getattr(o, "destination", "—")}
+             "destination": f"{o.lat:.4f}, {o.lng:.4f}"}
             for o in orders
         ],
         "step1": {
@@ -474,7 +474,7 @@ def save_results(orders, sorted_orders, van_assignments, route_results, total_el
             "sorted": [
                 {"id": o.id, "priority": o.priority, "weight": o.weight,
                  "deadline": o.deadline.isoformat() if o.deadline else None,
-                 "destination": getattr(o, "destination", "—")}
+                 "destination": f"{o.lat:.4f}, {o.lng:.4f}"}
                 for o in sorted_orders
             ],
         },
@@ -484,7 +484,7 @@ def save_results(orders, sorted_orders, van_assignments, route_results, total_el
             "van_count":   len(van_assignments),
             "assignments": [
                 [{"id": o.id, "weight": o.weight, "priority": o.priority,
-                  "destination": getattr(o, "destination", "—")}
+                  "destination": f"{o.lat:.4f}, {o.lng:.4f}"}
                  for o in van]
                 for van in van_assignments
             ],
